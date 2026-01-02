@@ -70,7 +70,12 @@ const App = () => {
       const saved = localStorage.getItem('winter_planner_v11');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.data && parsed.settings) return parsed;
+        if (parsed.data && parsed.settings) {
+          // Ensure level and exp are numbers on load
+          parsed.settings.level = Number(parsed.settings.level) || 1;
+          parsed.settings.exp = Number(parsed.settings.exp) || 0;
+          return parsed;
+        }
       }
     } catch (e) {}
     
