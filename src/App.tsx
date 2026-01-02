@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { 
-  CheckCircle, Circle, Edit2, Save, Plus, Trash2, 
-  Award, Calendar as CalendarIcon, ChevronLeft, ChevronRight, 
-  Timer, History, LayoutGrid, ListChecks, ArrowLeft, BookOpen, Star,
-  BarChart3, TrendingUp, Trophy, TrendingDown, Swords, Target, Flame, Heart,
-  PenLine, MessageSquare, Sparkles, Eraser, CalendarDays, ClipboardList, Clock,
-  User, Cpu, Lightbulb, ShieldCheck, Zap, X, Check, Undo2, Download,
-  Flag, ChevronUp, Layers, CalendarCheck
+  CheckCircle, Circle, Edit2, Plus, Trash2, 
+  Award, ChevronLeft, ChevronRight, 
+  Timer, LayoutGrid, ListChecks, ArrowLeft, BookOpen, Star,
+  BarChart3, TrendingUp, Trophy, Swords, Target, Flame, Heart,
+  PenLine, Sparkles, Eraser, CalendarDays, ClipboardList, Clock,
+  Lightbulb, ShieldCheck, Zap, X, Check, Undo2, Download,
+  Layers, CalendarCheck
 } from 'lucide-react';
 
 // Basic types for our data structures
@@ -44,6 +44,8 @@ type Settings = {
   level: number;
   exp: number;
 };
+
+type RecordItem = (BookRecord & {itemType: 'book'}) | (CubeRecord & {itemType: 'cube'}) | (BadukRecord & {itemType: 'baduk'});
 
 
 const App = () => {
@@ -194,8 +196,8 @@ const App = () => {
         const newStatus = !t.completed;
         if (newStatus) {
           setSettings(prev => {
-            let newExp = prev.exp + 10;
-            let newLevel = prev.level;
+            let newExp = Number(prev.exp) + 10;
+            let newLevel = Number(prev.level);
             if (newExp >= 100) { newExp = 0; newLevel += 1; }
             return { ...prev, exp: newExp, level: newLevel };
           });
@@ -224,16 +226,16 @@ const App = () => {
     if (type === 'reading') {
       updateDayData(selectedDate, { books: [...currentDayData.books, { ...data, timestamp }] });
       setNewBookTitle(''); setNewBookStars(0);
-      setSettings(prev => ({...prev, exp: prev.exp + 15}));
+      setSettings(prev => ({...prev, exp: Number(prev.exp) + 15}));
     } else if (type === 'cube') {
       updateDayData(selectedDate, { cubeRecords: [...currentDayData.cubeRecords, { time: parseFloat(data), timestamp }] });
       setNewCubeRecord('');
-      setSettings(prev => ({...prev, exp: prev.exp + 5}));
+      setSettings(prev => ({...prev, exp: Number(prev.exp) + 5}));
     } else if (type === 'baduk') {
       const selectedHighlight = settings.badukHighlights.find(h => h.id === data.highlightId);
       const recordData = { ...data, highlightLabel: String(selectedHighlight?.label || '기록 없음'), highlightIcon: String(selectedHighlight?.icon || 'Award'), timestamp };
       updateDayData(selectedDate, { badukRecords: [...(currentDayData.badukRecords || []), recordData] });
-      setSettings(prev => ({...prev, exp: prev.exp + 20}));
+      setSettings(prev => ({...prev, exp: Number(prev.exp) + 20}));
     }
   };
 
@@ -413,6 +415,24 @@ const App = () => {
 
   const [badukDetail, setBadukDetail] = useState({ type: 'success', opponent: 'AI', highlightId: 1 });
 
+  const combinedRecords: RecordItem[] = [
+    ...currentDayData.books.map(b => ({ ...b, itemType: 'book' as const })),
+    ...currentDayData.cubeRecords.map(c => ({ ...c, itemType: 'cube' as const })),
+    ...(currentDayData.badukRecords || []).map(ba => ({ ...ba, itemType: 'baduk' as const })),
+  ].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+  const deleteRecord = (record: RecordItem) => {
+      if (!window.confirm("이 기록을 삭제할까요?")) return;
+
+      if (record.itemType === 'book') {
+          updateDayData(selectedDate, { books: currentDayData.books.filter(b => b.timestamp !== record.timestamp) });
+      } else if (record.itemType === 'cube') {
+          updateDayData(selectedDate, { cubeRecords: currentDayData.cubeRecords.filter(c => c.timestamp !== record.timestamp) });
+      } else if (record.itemType === 'baduk') {
+          updateDayData(selectedDate, { badukRecords: (currentDayData.badukRecords || []).filter(b => b.timestamp !== record.timestamp) });
+      }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-28">
       
@@ -464,7 +484,7 @@ const App = () => {
                     const isAllDone = dayData?.tasks?.length > 0 && dayData.tasks.every(t => t.completed);
                     days.push(
                       <div key={d} onClick={() => { setSelectedDate(dateStr); setView('day'); }} className={`h-24 border-b border-r border-slate-100 p-2 cursor-pointer transition-all hover:bg-indigo-50 ${selectedDate === dateStr ? 'bg-indigo-50/50' : 'bg-white'}`}>
-                        <span className={`text-sm font-black ${dateStr === getTodayStr() ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : 'text-slate-600'}`}>{d}</span>
+                        <span className={`text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : 'text-slate-600'}`}>{d}</span>
                         <div className="mt-2 flex flex-col items-center">
                           {isAllDone && <Award className="text-yellow-400 animate-bounce" size={24} fill="#facc15" />}
                         </div>
@@ -577,12 +597,15 @@ const App = () => {
 
             <section className="bg-white rounded-[32px] shadow-sm border border-slate-200 p-6 space-y-4 max-h-[450px] overflow-y-auto">
                <h3 className="font-black text-slate-700 flex items-center justify-between">오늘의 성장 흔적 <Clock size={16} className="text-slate-400" /></h3>
-               {[...currentDayData.books.map(b=>({...b,itemType:'book'})),...currentDayData.cubeRecords.map(c=>({...c,itemType:'cube'})),...(currentDayData.badukRecords||[]).map(ba=>({...ba,itemType:'baduk'}))].sort((a,b)=>b.timestamp.localeCompare(a.timestamp)).map((rec, i) => (
-                 <div key={i} className={`p-5 rounded-3xl border shadow-sm transition-all ${rec.itemType === 'baduk' ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-50 border-white'}`}>
-                   <div className="flex justify-between items-start mb-2"><span className="text-[10px] font-black text-slate-300 bg-white px-2 py-1 rounded-lg border border-slate-100">{rec.timestamp}</span><button onClick={() => { if(window.confirm("삭제할까요?")) { if(rec.itemType==='book') updateDayData(selectedDate,{books:currentDayData.books.filter(b=>b.timestamp!==rec.timestamp)}); if(rec.itemType==='cube') updateDayData(selectedDate,{cubeRecords:currentDayData.cubeRecords.filter(c=>c.timestamp!==rec.timestamp)}); if(rec.itemType==='baduk') updateDayData(selectedDate,{badukRecords:currentDayData.badukRecords.filter(b=>b.timestamp!==rec.timestamp)}); } }} className="text-slate-300 hover:text-red-400"><Trash2 size={14}/></button></div>
-                   {rec.itemType==='book' && <div><p className="font-black text-slate-800 text-lg"> {rec.title}</p><div className="flex text-orange-400 mt-1">{[...Array(rec.stars)].map((_,i)=><Star key={i} size={10} fill="currentColor"/>)}</div></div>}
-                   {rec.itemType==='cube' && <p className="font-black text-slate-800 text-lg"> 기록 측정: <span className="text-purple-700 font-mono">{rec.time}초</span></p>}
-                   {rec.itemType==='baduk' && <div className="space-y-2"><div className="flex items-center gap-2"><span className={`text-[10px] font-black px-2 py-0.5 rounded-full text-white ${rec.type==='success'?'bg-indigo-500':'bg-orange-500'}`}>{rec.type==='success'?'성공':'경험'}</span><span className="text-sm font-black text-slate-600">상대: {String(rec.opponent)}</span></div><div className="flex items-center gap-2 p-3 bg-white/50 rounded-2xl border border-indigo-100/50"><div className="bg-indigo-100 p-2 rounded-xl text-indigo-600">{renderIcon(rec.highlightIcon, 18)}</div><p className="text-base font-black text-indigo-900 leading-none">훈장: {String(rec.highlightLabel)}</p></div></div>}
+               {combinedRecords.map((rec) => (
+                 <div key={rec.timestamp} className={`p-5 rounded-3xl border shadow-sm transition-all ${rec.itemType === 'baduk' ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-50 border-white'}`}>
+                   <div className="flex justify-between items-start mb-2">
+                     <span className="text-[10px] font-black text-slate-300 bg-white px-2 py-1 rounded-lg border border-slate-100">{rec.timestamp}</span>
+                     <button onClick={() => deleteRecord(rec)} className="text-slate-300 hover:text-red-400"><Trash2 size={14}/></button>
+                   </div>
+                   {rec.itemType === 'book' && <div><p className="font-black text-slate-800 text-lg"> {rec.title}</p><div className="flex text-orange-400 mt-1">{[...Array(rec.stars)].map((_,i)=><Star key={i} size={10} fill="currentColor"/>)}</div></div>}
+                   {rec.itemType === 'cube' && <p className="font-black text-slate-800 text-lg"> 기록 측정: <span className="text-purple-700 font-mono">{rec.time}초</span></p>}
+                   {rec.itemType === 'baduk' && <div className="space-y-2"><div className="flex items-center gap-2"><span className={`text-[10px] font-black px-2 py-0.5 rounded-full text-white ${rec.type==='success'?'bg-indigo-500':'bg-orange-500'}`}>{rec.type==='success'?'성공':'경험'}</span><span className="text-sm font-black text-slate-600">상대: {String(rec.opponent)}</span></div><div className="flex items-center gap-2 p-3 bg-white/50 rounded-2xl border border-indigo-100/50"><div className="bg-indigo-100 p-2 rounded-xl text-indigo-600">{renderIcon(rec.highlightIcon, 18)}</div><p className="text-base font-black text-indigo-900 leading-none">훈장: {String(rec.highlightLabel)}</p></div></div>}
                  </div>
                ))}
             </section>
