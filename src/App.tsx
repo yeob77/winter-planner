@@ -196,9 +196,14 @@ const App = () => {
         const newStatus = !t.completed;
         if (newStatus) {
           setSettings(prev => {
-            let newExp = Number(prev.exp) + 10;
-            let newLevel = Number(prev.level);
-            if (newExp >= 100) { newExp = 0; newLevel += 1; }
+            const currentExp = Number(prev.exp) || 0;
+            const currentLevel = Number(prev.level) || 1;
+            let newExp = currentExp + 10;
+            let newLevel = currentLevel;
+            if (newExp >= 100) {
+              newExp = 0;
+              newLevel = currentLevel + 1;
+            }
             return { ...prev, exp: newExp, level: newLevel };
           });
         }
@@ -226,16 +231,16 @@ const App = () => {
     if (type === 'reading') {
       updateDayData(selectedDate, { books: [...currentDayData.books, { ...data, timestamp }] });
       setNewBookTitle(''); setNewBookStars(0);
-      setSettings(prev => ({...prev, exp: Number(prev.exp) + 15}));
+      setSettings(prev => ({...prev, exp: (Number(prev.exp) || 0) + 15}));
     } else if (type === 'cube') {
       updateDayData(selectedDate, { cubeRecords: [...currentDayData.cubeRecords, { time: parseFloat(data), timestamp }] });
       setNewCubeRecord('');
-      setSettings(prev => ({...prev, exp: Number(prev.exp) + 5}));
+      setSettings(prev => ({...prev, exp: (Number(prev.exp) || 0) + 5}));
     } else if (type === 'baduk') {
       const selectedHighlight = settings.badukHighlights.find(h => h.id === data.highlightId);
       const recordData = { ...data, highlightLabel: String(selectedHighlight?.label || '기록 없음'), highlightIcon: String(selectedHighlight?.icon || 'Award'), timestamp };
       updateDayData(selectedDate, { badukRecords: [...(currentDayData.badukRecords || []), recordData] });
-      setSettings(prev => ({...prev, exp: Number(prev.exp) + 20}));
+      setSettings(prev => ({...prev, exp: (Number(prev.exp) || 0) + 20}));
     }
   };
 
