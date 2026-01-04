@@ -51,7 +51,7 @@ type RecordItem = (BookRecord & {itemType: 'book'}) | (CubeRecord & {itemType: '
 const App = () => {
   const getTodayStr = (date = new Date()) => {
     const offset = date.getTimezoneOffset() * 60000;
-    return (new Date(date - offset)).toISOString().slice(0, 10);
+    return (new Date(date.getTime() - offset)).toISOString().slice(0, 10);
   };
 
   const getTimeStr = () => {
